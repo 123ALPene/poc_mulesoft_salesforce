@@ -1,0 +1,12 @@
+salesforce:
+ username: "mbene.dia@resilient-panda-fvc2z9.com"
+ password: "Passer123"
+ token: "1cHjmH0G8I3iUB8CELyQ5NFS"
+ 
+mysql:
+ user: "root"
+ password: ""
+ database: "vente"
+ host: "localhost"
+ port: "3306"
+ 
