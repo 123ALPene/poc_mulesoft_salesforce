@@ -32,35 +32,6 @@ VALUES
 		</choice>
 	</flow>
 	 -->
-	  
-	<flow name="poc_salesforce_upsert_salesforce" doc:id="b43c7622-cfd6-4ef1-86e6-b11bb4eea441" >
-		<logger level="INFO" doc:name="log_flow_reference" doc:id="f2702729-2bae-4e39-b97b-fd318efec764" message='#[output application/json&#10;---&#10;{&#10;	log: "********** log flow ref *********",&#10;	payload: payload,&#10;	log1: "********** log flow ref *********"&#10;}]'/>
-		<set-variable value="#[payload]" doc:name="payload_initial" doc:id="598d7cc9-e29c-4e0f-adb7-8e44bdc9bff8" variableName="payload_initial"/>
-		<salesforce:query doc:name="Query" doc:id="24e70ed1-9b22-4b8b-985e-822b25adf5aa" config-ref="Salesforce_Config">
-			<salesforce:salesforce-query ><![CDATA[select id, ExternalId__c from Account  where ExternalId__c = ':client']]></salesforce:salesforce-query>
-			<salesforce:parameters ><![CDATA[#[{
-	'client': payload.client as String
-}]]]></salesforce:parameters>
-		</salesforce:query>
-		<ee:transform doc:name="Transform Message" doc:id="689cb25d-a9c3-418f-a70a-49cb8efe2038" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-output application/java
----
-payload map ( payload01 , indexOfPayload01 ) -> {
-	AccountId: payload01.Id,
-	EffectiveDate: vars.payload_initial."Date de debut de la commande",
-	EndDate: vars.payload_initial."Date de fin de la commande",
-	Status: vars.payload_initial.Status,
-	Type: vars.payload_initial.Type,
-	Name: vars.payload_initial.Name,
-	ExternalId__c: vars.payload_initial.id as String
-}]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-		<salesforce:upsert doc:name="Upsert" doc:id="83b2a509-c188-467d-b4b9-444a8a9fe232" config-ref="Salesforce_Config" objectType="Order" externalIdFieldName="ExternalId__c"/>
-		<logger level="INFO" doc:name="Logger" doc:id="781e968f-46c4-4a0e-be50-5f9129606ba9" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: "****************************",&#10;	payload: payload,&#10;	log2: "****************************"&#10;}]'/>
-	</flow>
 	 
 	<flow name="poc_salesforce_mulesoftFlow2" doc:id="233c1fe8-7c84-49ed-9b08-b4d3fa7a05a7" >
 		<scheduler doc:name="Scheduler" doc:id="be8169b3-1e6e-4636-b7c4-8b16bb7919f3">
@@ -100,37 +71,8 @@ max(payload.*date_update)
 				<logger level="INFO" doc:name="Insert / update : data" doc:id="6628d456-d610-4522-8118-c9087fd95275" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: "********** Insert / update : data *********",&#10;    Taille:  sizeOf(payload),&#10;	payload: payload,&#10;	log1: "********** Payload *********"&#10;}]'/>
 				<logger level="INFO" doc:name="Tous les ids clients" doc:id="ce13df30-9f4c-44ad-8c00-6edbc27cc36d" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: &quot;********** Tous les ids clients *********&quot;,&#10;    'client': &quot;'&quot; ++ (payload.client joinBy (&quot;', '&quot;)) ++ &quot;'&quot;,&#10;	log1: &quot;********** Tous les ids clients *********&quot;&#10;}]"/>
 				<set-variable value="#[payload]" doc:name="payload_initial" doc:id="b6efbc66-6f59-4e82-a86f-afe0cba801cc" variableName="payload_initial" />
-				<salesforce:query doc:name="Query" doc:id="6ee8dc4d-4e3e-41ce-9bf2-2b411394e278" config-ref="Salesforce_Config">
-					<salesforce:salesforce-query><![CDATA[select id, ExternalId__c from Account  where ExternalId__c IN (:client)]]></salesforce:salesforce-query>
-					<salesforce:parameters><![CDATA[#[{
-	'client': "'" ++ (payload.client joinBy ("', '")) ++ "'"
-}]]]></salesforce:parameters>
-				</salesforce:query>
+				<flow-ref doc:name="Flow Reference" doc:id="879a3ee9-502c-49bc-8d7f-fa02aa1f5ecc" name="get_all_accounts_ids"/>
 				<logger level="INFO" doc:name="query_results" doc:id="869fa436-5657-4c5b-91d1-a81711e4ca3f" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: "********** query results *********",&#10;    Taille:  sizeOf(payload),&#10;	payload: payload,&#10;	log1: "********** query results *********"&#10;}]'/>
-				<ee:transform doc:name="Transform Message" doc:id="abe2747d-668a-4a53-8a8f-4dd721c5e812">
-					<ee:message>
-						<ee:set-payload><![CDATA[%dw 2.0
-output application/csv header=true
----
-
-vars.payload_initial map ((item, index) -> {
-	// "id": item.id,
-	
-    (payload filter ($.ExternalId__c contains item.client) map (accountsValues) -> {
-		"ExternalId__c": item.id as String,
-		"AccountId": accountsValues.Id,
-		"EffectiveDate": item."Date de debut de la commande",
-		"Name": item.Name,
-		"Type": item.Type,
-		"Status": item.Status,
-		"EndDate": item."Date de fin de la commande"
-	})
-})
-
-]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-				<logger level="INFO" doc:name="Toutes les commandes" doc:id="f2c96e73-670d-4d15-ba96-32500cfb3b6a" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: &quot;********** Tous les commandes *********&quot;,&#10;    'payload' : payload,&#10;	log1: &quot;********** Tous les commandes *********&quot;&#10;}]"/>
 				<salesforce:create-job-bulk-api-v2 doc:name="Create job bulk api v 2" doc:id="4a3b1be7-3115-45af-a6d2-d2bbb3ec57c1" config-ref="Salesforce_Config" objectType="Order" operation="upsert" externalIdFieldName="ExternalId__c" lineEnding="CRLF"/>
 				<logger level="INFO" doc:name="account_ids" doc:id="7ec7484f-b32a-49ec-aa0c-8e6be341aa72" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: "********** accounts ids *********",&#10;    Taille:  sizeOf(payload),&#10;	payload: payload,&#10;	log1: "********** accounts ids *********"&#10;}]'/>
 				<salesforce:get-job-state-bulk-api-v2 doc:name="Get job state bulk api v 2" doc:id="8ecf44bd-3bc6-41cb-b660-bc23e19bfff6" config-ref="Salesforce_Config" id="#[payload.id[0 to 14] as String]"/>
@@ -141,5 +83,40 @@ vars.payload_initial map ((item, index) -> {
 			</otherwise>
 		</choice>
 	</flow>
+	<sub-flow name="get_all_accounts_ids" doc:id="ea2ed2c4-6e85-45a6-9628-f43426c7167b" >
+		<logger level="INFO" doc:name="log_flow_reference" doc:id="f2702729-2bae-4e39-b97b-fd318efec764" message='#[output application/json&#10;---&#10;{&#10;	log: "********** log flow ref *********",&#10;	payload: payload,&#10;	log1: "********** log flow ref *********"&#10;}]' />
+		<set-variable value="#[%dw 2.0 &#10; output application/json&#10;--- &#10;payload]" doc:name="all_commands" doc:id="a7103807-aa2b-4cda-a221-fecfe90ffcc9" variableName="all_commands" />
+		<salesforce:query doc:name="Query" doc:id="454134e4-d73c-4b9f-8c11-abb578dab867" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[select id, ExternalId__c from Account  where ExternalId__c IN (:client)]]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[{
+	'client': "'" ++ (payload.client joinBy ("', '")) ++ "'"
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<logger level="INFO" doc:name="query_results" doc:id="a1e05a69-a8c2-47c8-895d-cde8c909b44e" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: "********** query results *********",&#10;    Taille:  sizeOf(payload),&#10;	payload: payload,&#10;	log1: "********** query results *********"&#10;}]' />
+		<ee:transform doc:name="Transform Message" doc:id="3bd0d60f-61cc-4bff-a4ef-d1915f0a444a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=true
+
+var output2 = payload map ((value, key) -> {
+    (value.ExternalId__c): value.Id
+})
+---
+vars.payload_initial map ((item, index) -> {
+		"ExternalId__c": item.id as String,
+		"AccountId": output2[item.client][0],
+		"EffectiveDate": item."Date de debut de la commande",
+		"Name": item.Name,
+		"Type": item.Type,
+		"Status": item.Status,
+		"EndDate": item."Date de fin de la commande"
+	
+})
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Toutes les commandes" doc:id="8d7822b9-33aa-4eaf-8c4c-cebc14f136f7" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	log: &quot;********** Tous les commandes *********&quot;,&#10;    'payload' : vars.all_commands,&#10;	log1: &quot;********** Tous les commandes *********&quot;&#10;}]" />
+	</sub-flow>
 	<os:object-store name="watermarkStore" persistent="true"/>
 </mule>

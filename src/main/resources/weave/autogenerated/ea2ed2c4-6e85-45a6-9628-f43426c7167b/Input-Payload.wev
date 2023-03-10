@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_ea2ed2c4_6e85_45a6_9628_f43426c7167b_Input_Payload = Array<{|  id: Number,   article: Number,   client: Number,   Name?: String,   Type?: String,   Status?: String,   "Date de debut de la commande": Date,   "Date de fin de la commande": Date,   date_update: Date|}>
+
